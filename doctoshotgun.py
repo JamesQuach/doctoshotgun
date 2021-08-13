@@ -13,6 +13,7 @@ import unicodedata
 
 from dateutil.parser import parse as parse_date
 from dateutil.relativedelta import relativedelta
+from abc import ABCMeta, abstractmethod
 
 import cloudscraper
 import colorama
@@ -60,7 +61,6 @@ def log_ts(text=None, *args, **kwargs):
     if text:
         log(text, *args, **kwargs)
 
-
 class Session(cloudscraper.CloudScraper):
     def send(self, *args, **kwargs):
         callback = kwargs.pop('callback', lambda future, response: response)
@@ -72,7 +72,6 @@ class Session(cloudscraper.CloudScraper):
         resp = super().send(*args, **kwargs)
 
         return callback(self, resp)
-
 
 class LoginPage(JsonPage):
     def redirect(self):
@@ -88,118 +87,119 @@ class ChallengePage(JsonPage):
     def build_doc(self, content):
         return ""  # Do not choke on empty response from server
 
-class Center:
-    class CentersPage(HTMLPage):
-        def iter_centers_ids(self):
-            for div in self.doc.xpath('//div[@class="js-dl-search-results-calendar"]'):
-                data = json.loads(div.attrib['data-props'])
-                yield data['searchResultId']
 
-        def get_next_page(self):
-            # French doctolib uses data-u attribute of span-element to create the link when user hovers span
-            for span in self.doc.xpath('//div[contains(@class, "next")]/span'):
-                if not span.attrib.has_key('data-u'):
-                    continue
+class CentersPage(HTMLPage):
+    def iter_centers_ids(self):
+        for div in self.doc.xpath('//div[@class="js-dl-search-results-calendar"]'):
+            data = json.loads(div.attrib['data-props'])
+            yield data['searchResultId']
 
-                # How to find the corresponding javascript-code:
-                # Press F12 to open dev-tools, select elements-tab, find div.next, right click on element and enable break on substructure change
-                # Hover "Next" element and follow callstack upwards
-                # JavaScript:
-                # var t = (e = r()(e)).data("u")
-                #     , n = atob(t.replace(/\s/g, '').split('').reverse().join(''));
-                
-                import base64
-                href = base64.urlsafe_b64decode(''.join(span.attrib['data-u'].split())[::-1]).decode()
-                query = dict(parse.parse_qsl(parse.urlsplit(href).query))
+    def get_next_page(self):
+        # French doctolib uses data-u attribute of span-element to create the link when user hovers span
+        for span in self.doc.xpath('//div[contains(@class, "next")]/span'):
+            if not span.attrib.has_key('data-u'):
+                continue
 
-                if 'page' in query:
-                    return int(query['page'])
-
-            for a in self.doc.xpath('//div[contains(@class, "next")]/a'):
-                href = a.attrib['href']
-                query = dict(parse.parse_qsl(parse.urlsplit(href).query))
-
-                if 'page' in query:
-                    return int(query['page'])
+            # How to find the corresponding javascript-code:
+            # Press F12 to open dev-tools, select elements-tab, find div.next, right click on element and enable break on substructure change
+            # Hover "Next" element and follow callstack upwards
+            # JavaScript:
+            # var t = (e = r()(e)).data("u")
+            #     , n = atob(t.replace(/\s/g, '').split('').reverse().join(''));
             
-            return None
+            import base64
+            href = base64.urlsafe_b64decode(''.join(span.attrib['data-u'].split())[::-1]).decode()
+            query = dict(parse.parse_qsl(parse.urlsplit(href).query))
 
-    class CenterResultPage(JsonPage):
-        pass
+            if 'page' in query:
+                return int(query['page'])
 
+        for a in self.doc.xpath('//div[contains(@class, "next")]/a'):
+            href = a.attrib['href']
+            query = dict(parse.parse_qsl(parse.urlsplit(href).query))
 
-    class CenterPage(HTMLPage):
-        pass
-
-
-    class CenterBookingPage(JsonPage):
-        def find_motive(self, regex, singleShot=False):
-            for s in self.doc['data']['visit_motives']:
-                # ignore case as some doctors use their own spelling
-                if re.search(regex, s['name'], re.IGNORECASE):
-                    if s['allow_new_patients'] == False:
-                        log('Motive %s not allowed for new patients at this center. Skipping vaccine...',
-                            s['name'], flush=True)
-                        continue
-                    if not singleShot and not s['first_shot_motive']: 
-                        log('Skipping second shot motive %s...',
-                            s['name'], flush=True)
-                        continue
-                    return s['id']
-
-            return None
-
-        def get_motives(self):
-            return [s['name'] for s in self.doc['data']['visit_motives']]
-
-        def get_places(self):
-            return self.doc['data']['places']
-
-        def get_practice(self):
-            return self.doc['data']['places'][0]['practice_ids'][0]
-
-        def get_agenda_ids(self, motive_id, practice_id=None):
-            agenda_ids = []
-            for a in self.doc['data']['agendas']:
-                if motive_id in a['visit_motive_ids'] and \
-                not a['booking_disabled'] and \
-                (not practice_id or a['practice_id'] == practice_id):
-                    agenda_ids.append(str(a['id']))
-
-            return agenda_ids
-
-        def get_profile_id(self):
-            return self.doc['data']['profile']['id']
-
-
-        class AvailabilitiesPage(JsonPage):
-            def find_best_slot(self, start_date=None, end_date=None):
-                for a in self.doc['availabilities']:
-                    date = parse_date(a['date']).date()
-                    if start_date and date < start_date or end_date and date > end_date:
-                        continue
-                    if len(a['slots']) == 0:
-                        continue
-                    return a['slots'][-1]
+            if 'page' in query:
+                return int(query['page'])
         
-        class AppointmentPage(JsonPage):
-            def get_error(self):
-                return self.doc['error']
+        return None
 
-            def is_error(self):
-                return 'error' in self.doc
+class CenterResultPage(JsonPage):
+    pass
 
 
-        class AppointmentEditPage(JsonPage):
-            def get_custom_fields(self):
-                for field in self.doc['appointment']['custom_fields']:
-                    if field['required']:
-                        yield field
+class CenterPage(HTMLPage):
+    pass
 
 
-        class AppointmentPostPage(JsonPage):
-            pass
-    
+class CenterBookingPage(JsonPage):
+    def find_motive(self, regex, singleShot=False):
+        for s in self.doc['data']['visit_motives']:
+            # ignore case as some doctors use their own spelling
+            if re.search(regex, s['name'], re.IGNORECASE):
+                if s['allow_new_patients'] == False:
+                    log('Motive %s not allowed for new patients at this center. Skipping vaccine...',
+                        s['name'], flush=True)
+                    continue
+                if not singleShot and not s['first_shot_motive']:
+                    log('Skipping second shot motive %s...',
+                        s['name'], flush=True)
+                    continue
+                return s['id']
+
+        return None
+
+    def get_motives(self):
+        return [s['name'] for s in self.doc['data']['visit_motives']]
+
+    def get_places(self):
+        return self.doc['data']['places']
+
+    def get_practice(self):
+        return self.doc['data']['places'][0]['practice_ids'][0]
+
+    def get_agenda_ids(self, motive_id, practice_id=None):
+        agenda_ids = []
+        for a in self.doc['data']['agendas']:
+            if motive_id in a['visit_motive_ids'] and \
+               not a['booking_disabled'] and \
+               (not practice_id or a['practice_id'] == practice_id):
+                agenda_ids.append(str(a['id']))
+
+        return agenda_ids
+
+    def get_profile_id(self):
+        return self.doc['data']['profile']['id']
+
+
+class AvailabilitiesPage(JsonPage):
+    def find_best_slot(self, start_date=None, end_date=None):
+        for a in self.doc['availabilities']:
+            date = parse_date(a['date']).date()
+            if start_date and date < start_date or end_date and date > end_date:
+                continue
+            if len(a['slots']) == 0:
+                continue
+            return a['slots'][-1]
+
+
+class AppointmentPage(JsonPage):
+    def get_error(self):
+        return self.doc['error']
+
+    def is_error(self):
+        return 'error' in self.doc
+
+
+class AppointmentEditPage(JsonPage):
+    def get_custom_fields(self):
+        for field in self.doc['appointment']['custom_fields']:
+            if field['required']:
+                yield field
+
+
+class AppointmentPostPage(JsonPage):
+    pass
+
 
 class MasterPatientPage(JsonPage):
     def get_patients(self):
@@ -211,7 +211,8 @@ class MasterPatientPage(JsonPage):
 
 class CityNotFound(Exception):
     pass
-  
+
+
 class Doctolib(LoginBrowser):
     # individual properties for each country. To be defined in subclasses
     BASEURL = ""
@@ -222,16 +223,16 @@ class Doctolib(LoginBrowser):
     login = URL('/login.json', LoginPage)
     send_auth_code = URL('/api/accounts/send_auth_code', SendAuthCodePage)
     challenge = URL('/login/challenge', ChallengePage)
-    center_result = URL(r'/search_results/(?P<id>\d+).json', Center)
-    center_booking = URL(r'/booking/(?P<center_id>.+).json', Center)
-    availabilities = URL(r'/availabilities.json', Center)
+    center_result = URL(r'/search_results/(?P<id>\d+).json', CenterResultPage)
+    center_booking = URL(r'/booking/(?P<center_id>.+).json', CenterBookingPage)
+    availabilities = URL(r'/availabilities.json', AvailabilitiesPage)
     second_shot_availabilities = URL(
-        r'/second_shot_availabilities.json', Center)
-    appointment = URL(r'/appointments.json', Center)
+        r'/second_shot_availabilities.json', AvailabilitiesPage)
+    appointment = URL(r'/appointments.json', AppointmentPage)
     appointment_edit = URL(
-        r'/appointments/(?P<id>.+)/edit.json', Center)
+        r'/appointments/(?P<id>.+)/edit.json', AppointmentEditPage)
     appointment_post = URL(
-        r'/appointments/(?P<id>.+).json', Center)
+        r'/appointments/(?P<id>.+).json', AppointmentPostPage)
     master_patient = URL(r'/account/master_patients.json', MasterPatientPage)
 
     def _setup_session(self, profile):
@@ -545,59 +546,113 @@ class Doctolib(LoginBrowser):
 
         return self.page.doc['confirmed']
 
-class Vaccine:
 
-    class DoctolibDE(Doctolib):
-        BASEURL = 'https://www.doctolib.de'
-        KEY_PFIZER = '6768'
-        KEY_PFIZER_SECOND = '6769'
-        KEY_PFIZER_THIRD = None
-        KEY_MODERNA = '6936'
-        KEY_MODERNA_SECOND = '6937'
-        KEY_MODERNA_THIRD = None
-        KEY_JANSSEN = '7978'
-        KEY_ASTRAZENECA = '7109'
-        KEY_ASTRAZENECA_SECOND = '7110'
-        vaccine_motives = {
-            KEY_PFIZER: 'Pfizer',
-            KEY_PFIZER_SECOND: 'Zweit.*Pfizer|Pfizer.*Zweit',
-            KEY_PFIZER_THIRD: 'Dritt.*Pfizer|Pfizer.*Dritt',
-            KEY_MODERNA: 'Moderna',
-            KEY_MODERNA_SECOND: 'Zweit.*Moderna|Moderna.*Zweit',
-            KEY_MODERNA_THIRD: 'Dritt.*Moderna|Moderna.*Dritt',
-            KEY_JANSSEN: 'Janssen',
-            KEY_ASTRAZENECA: 'AstraZeneca',
-            KEY_ASTRAZENECA_SECOND: 'Zweit.*AstraZeneca|AstraZeneca.*Zweit',
-        }
-        centers = URL(r'/impfung-covid-19-corona/(?P<where>\w+)', Center)
-        center = URL(r'/praxis/.*', Center)
+class DoctolibDE(Doctolib):
+    BASEURL = 'https://www.doctolib.de'
+    KEY_PFIZER = '6768'
+    KEY_PFIZER_SECOND = '6769'
+    KEY_PFIZER_THIRD = None
+    KEY_MODERNA = '6936'
+    KEY_MODERNA_SECOND = '6937'
+    KEY_MODERNA_THIRD = None
+    KEY_JANSSEN = '7978'
+    KEY_ASTRAZENECA = '7109'
+    KEY_ASTRAZENECA_SECOND = '7110'
+    vaccine_motives = {
+        KEY_PFIZER: 'Pfizer',
+        KEY_PFIZER_SECOND: 'Zweit.*Pfizer|Pfizer.*Zweit',
+        KEY_PFIZER_THIRD: 'Dritt.*Pfizer|Pfizer.*Dritt',
+        KEY_MODERNA: 'Moderna',
+        KEY_MODERNA_SECOND: 'Zweit.*Moderna|Moderna.*Zweit',
+        KEY_MODERNA_THIRD: 'Dritt.*Moderna|Moderna.*Dritt',
+        KEY_JANSSEN: 'Janssen',
+        KEY_ASTRAZENECA: 'AstraZeneca',
+        KEY_ASTRAZENECA_SECOND: 'Zweit.*AstraZeneca|AstraZeneca.*Zweit',
+    }
+    centers = URL(r'/impfung-covid-19-corona/(?P<where>\w+)', CentersPage)
+    center = URL(r'/praxis/.*', CenterPage)
 
-    class DoctolibFR(Doctolib):
-        BASEURL = 'https://www.doctolib.fr'
-        KEY_PFIZER = '6970'
-        KEY_PFIZER_SECOND = '6971'
-        KEY_PFIZER_THIRD = '8192'
-        KEY_MODERNA = '7005'
-        KEY_MODERNA_SECOND = '7004'
-        KEY_MODERNA_THIRD = '8193'
-        KEY_JANSSEN = '7945'
-        KEY_ASTRAZENECA = '7107'
-        KEY_ASTRAZENECA_SECOND = '7108'
-        vaccine_motives = {
-            KEY_PFIZER: 'Pfizer',
-            KEY_PFIZER_SECOND: '2de.*Pfizer',
-            KEY_PFIZER_THIRD: '3e.*Pfizer',
-            KEY_MODERNA: 'Moderna',
-            KEY_MODERNA_SECOND: '2de.*Moderna',
-            KEY_MODERNA_THIRD: '3e.*Moderna',
-            KEY_JANSSEN: 'Janssen',
-            KEY_ASTRAZENECA: 'AstraZeneca',
-            KEY_ASTRAZENECA_SECOND: '2de.*AstraZeneca',
-        }
 
-        centers = URL(r'/vaccination-covid-19/(?P<where>\w+)', Center)
-        center = URL(r'/centre-de-sante/.*', Center)
+class DoctolibFR(Doctolib):
+    BASEURL = 'https://www.doctolib.fr'
+    KEY_PFIZER = '6970'
+    KEY_PFIZER_SECOND = '6971'
+    KEY_PFIZER_THIRD = '8192'
+    KEY_MODERNA = '7005'
+    KEY_MODERNA_SECOND = '7004'
+    KEY_MODERNA_THIRD = '8193'
+    KEY_JANSSEN = '7945'
+    KEY_ASTRAZENECA = '7107'
+    KEY_ASTRAZENECA_SECOND = '7108'
+    vaccine_motives = {
+        KEY_PFIZER: 'Pfizer',
+        KEY_PFIZER_SECOND: '2de.*Pfizer',
+        KEY_PFIZER_THIRD: '3e.*Pfizer',
+        KEY_MODERNA: 'Moderna',
+        KEY_MODERNA_SECOND: '2de.*Moderna',
+        KEY_MODERNA_THIRD: '3e.*Moderna',
+        KEY_JANSSEN: 'Janssen',
+        KEY_ASTRAZENECA: 'AstraZeneca',
+        KEY_ASTRAZENECA_SECOND: '2de.*AstraZeneca',
+    }
 
+    centers = URL(r'/vaccination-covid-19/(?P<where>\w+)', CentersPage)
+    center = URL(r'/centre-de-sante/.*', CenterPage)
+
+
+class IBuilder(metaclass=ABCMeta):
+    "The Builder Interface"
+
+    @staticmethod
+    @abstractmethod
+    def build_patients(self):
+        "Build patients"
+
+    @staticmethod
+    @abstractmethod
+    def build_motives(self):
+        "Build motives"
+
+    @staticmethod
+    @abstractmethod
+    def build_date(self):
+        "Build date"
+
+    @staticmethod
+    @abstractmethod
+    def get_result():
+        "Return the final product"
+
+class Builder(IBuilder):
+    "The Concrete Builder."
+
+    def __init__(self):
+        self.product = Product()
+        "Append docto to products.part[0]" #refactor line 739-742 from the original doctoshotgun.py file
+    
+    def build_patients(self):
+        "Append docto.patient to products.part[1]" #refactor line 744-765 from the original doctoshotgun.py file 
+
+    def build_motives(self):
+        "Append motives.append(docto.KEY) to products.part[2]" #refactor line 767-817 from the original doctoshotgun.py file
+
+    def build_date(self):
+        "Append start_date/end_date to products.part[3]" #refactor line 821-838 from the original doctoshotgun.py file
+
+    def get_result():
+        "return self.product.parts" 
+
+class Product():
+    def __init__(self):
+        self.parts = []
+    
+class Director:
+    "The Director, building a complex representation."
+    
+    @staticmethod
+    def construct():
+        "Constructs and returns the final product"
+        return Builder()
 
 class Application:
     @classmethod
@@ -619,8 +674,8 @@ class Application:
         colorama.init()  # needed for windows
 
         doctolib_map = {
-            "fr": Vaccine.DoctolibFR,
-            "de": Vaccine.DoctolibDE
+            "fr": DoctolibFR,
+            "de": DoctolibDE
         }
 
         parser = argparse.ArgumentParser(

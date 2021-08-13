@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import pytest
 from requests.adapters import Response
 import responses
@@ -8,7 +7,7 @@ import json
 import datetime
 from woob.browser.browsers import Browser
 from woob.browser.exceptions import ServerError
-from doctoshotgun import Center, Vaccine
+from doctoshotgun import CentersPage, DoctolibDE, DoctolibFR, CenterBookingPage
 
 # globals
 FIXTURES_FOLDER = "test_fixtures"
@@ -19,7 +18,7 @@ def test_find_centers_fr_returns_503_should_continue(tmp_path):
     """
     Check that find_centers doesn't raise a ServerError in case of 503 HTTP response
     """
-    docto = Vaccine.DoctolibFR("roger.phillibert@gmail.com",
+    docto = DoctolibFR("roger.phillibert@gmail.com",
                        "1234", responses_dirname=tmp_path)
     docto.BASEURL = "https://127.0.0.1"
 
@@ -39,7 +38,7 @@ def test_find_centers_de_returns_503_should_continue(tmp_path):
     """
     Check that find_centers doesn't raise a ServerError in case of 503 HTTP response
     """
-    docto = Vaccine.DoctolibDE("roger.phillibert@gmail.com",
+    docto = DoctolibDE("roger.phillibert@gmail.com",
                        "1234", responses_dirname=tmp_path)
     docto.BASEURL = "https://127.0.0.1"
 
@@ -59,7 +58,7 @@ def test_find_centers_de_returns_520_should_continue(tmp_path):
     """
     Check that find_centers doesn't raise a ServerError in case of 503 HTTP response
     """
-    docto = Vaccine.DoctolibDE("roger.phillibert@gmail.com",
+    docto = DoctolibDE("roger.phillibert@gmail.com",
                        "1234", responses_dirname=tmp_path)
     docto.BASEURL = "https://127.0.0.1"
 
@@ -79,7 +78,7 @@ def test_find_centers_fr_returns_502_should_fail(tmp_path):
     """
     Check that find_centers raises an error in case of non-whitelisted status code
     """
-    docto = Vaccine.DoctolibFR("roger.phillibert@gmail.com",
+    docto = DoctolibFR("roger.phillibert@gmail.com",
                        "1234", responses_dirname=tmp_path)
     docto.BASEURL = "https://127.0.0.1"
 
@@ -100,7 +99,7 @@ def test_find_centers_de_returns_502_should_fail(tmp_path):
     """
     Check that find_centers raises an error in case of non-whitelisted status code
     """
-    docto = Vaccine.DoctolibDE("roger.phillibert@gmail.com",
+    docto = DoctolibDE("roger.phillibert@gmail.com",
                        "1234", responses_dirname=tmp_path)
     docto.BASEURL = "https://127.0.0.1"
 
@@ -149,7 +148,7 @@ vlmcw1ycu9WazNXZm9mcw1yclJHd1FWL5ETLklmdvNWLu9Wa0FmbpN2YhZ3L">
     response = Response()
     response._content = b'{}'
 
-    centers_page = Center.CentersPage(browser=Browser(), response=response)
+    centers_page = CentersPage(browser=Browser(), response=response)
     centers_page.doc = doc
     next_page = centers_page.get_next_page()
     assert next_page == 2
@@ -191,7 +190,7 @@ vlmcw1ycu9WazNXZm9mcw1yclJHd1FWL5ETLklmdvNWLu9Wa0FmbpN2YhZ3L">
     response = Response()
     response._content = b'{}'
 
-    centers_page = Center.CentersPage(browser=Browser(), response=response)
+    centers_page = CentersPage(browser=Browser(), response=response)
     centers_page.doc = doc
     next_page = centers_page.get_next_page()
     assert next_page == 3
@@ -233,7 +232,7 @@ vlmcw1ycu9WazNXZm9mcw1yclJHd1FWL5ETLklmdvNWLu9Wa0FmbpN2YhZ3L">
     response = Response()
     response._content = b'{}'
 
-    centers_page = Center.CentersPage(browser=Browser(), response=response)
+    centers_page = CentersPage(browser=Browser(), response=response)
     centers_page.doc = doc
     next_page = centers_page.get_next_page()
     assert next_page == 4
@@ -270,7 +269,7 @@ vlmcw1ycu9WazNXZm9mcw1yclJHd1FWL5ETLklmdvNWLu9Wa0FmbpN2YhZ3L">
     response = Response()
     response._content = b'{}'
 
-    centers_page = Center.CentersPage(browser=Browser(), response=response)
+    centers_page = CentersPage(browser=Browser(), response=response)
     centers_page.doc = doc
     next_page = centers_page.get_next_page()
     assert next_page == None
@@ -303,7 +302,7 @@ def test_get_next_page_de_should_return_2_on_page_1(tmp_path):
     response = Response()
     response._content = b'{}'
 
-    centers_page = Center.CentersPage(browser=Browser(), response=response)
+    centers_page = CentersPage(browser=Browser(), response=response)
     centers_page.doc = doc
     next_page = centers_page.get_next_page()
     assert next_page == 2
@@ -336,7 +335,7 @@ def test_get_next_page_de_should_return_3_on_page_2(tmp_path):
     response = Response()
     response._content = b'{}'
 
-    centers_page = Center.CentersPage(browser=Browser(), response=response)
+    centers_page = CentersPage(browser=Browser(), response=response)
     centers_page.doc = doc
     next_page = centers_page.get_next_page()
     assert next_page == 3
@@ -369,7 +368,7 @@ def test_get_next_page_de_should_return_4_on_page_3(tmp_path):
     response = Response()
     response._content = b'{}'
 
-    centers_page = Center.CentersPage(browser=Browser(), response=response)
+    centers_page = CentersPage(browser=Browser(), response=response)
     centers_page.doc = doc
     next_page = centers_page.get_next_page()
     assert next_page == 4
@@ -401,7 +400,7 @@ def test_get_next_page_de_should_return_None_on_last_page(tmp_path):
     response = Response()
     response._content = b'{}'
 
-    centers_page = Center.CentersPage(browser=Browser(), response=response)
+    centers_page = CentersPage(browser=Browser(), response=response)
     centers_page.doc = doc
     next_page = centers_page.get_next_page()
     assert next_page == None
@@ -412,7 +411,7 @@ def test_book_slots_should_succeed(tmp_path):
     """
     Check that try_to_book calls all services successfully
     """
-    docto = Vaccine.DoctolibDE("roger.phillibert@gmail.com",
+    docto = DoctolibDE("roger.phillibert@gmail.com",
                        "1234", responses_dirname=tmp_path)
     docto.BASEURL = "https://127.0.0.1"
     docto.patient = {
@@ -578,12 +577,12 @@ def test_find_motive_should_ignore_second_shot(tmp_path):
     response = Response()
     response._content = b'{}'
 
-    booking_page = Center.CenterBookingPage(browser=Browser(), response=response)
+    booking_page = CenterBookingPage(browser=Browser(), response=response)
     booking_page.doc = mock_doctor_response
-    visit_motive_id = Center.CenterBookingPage.find_motive(
+    visit_motive_id = CenterBookingPage.find_motive(
         booking_page, '.*(Pfizer)', False)
     assert visit_motive_id == mock_doctor_response['data']['visit_motives'][1]['id']
 
-    visit_motive_id = Center.CenterBookingPage.find_motive(
+    visit_motive_id = CenterBookingPage.find_motive(
         booking_page, '.*(Janssen)', True)
     assert visit_motive_id == mock_doctor_response['data']['visit_motives'][3]['id']
