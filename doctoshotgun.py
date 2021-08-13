@@ -13,6 +13,7 @@ import unicodedata
 
 from dateutil.parser import parse as parse_date
 from dateutil.relativedelta import relativedelta
+from abc import ABCMeta, abstractmethod
 
 import cloudscraper
 import colorama
@@ -60,7 +61,6 @@ def log_ts(text=None, *args, **kwargs):
     if text:
         log(text, *args, **kwargs)
 
-
 class Session(cloudscraper.CloudScraper):
     def send(self, *args, **kwargs):
         callback = kwargs.pop('callback', lambda future, response: response)
@@ -72,7 +72,6 @@ class Session(cloudscraper.CloudScraper):
         resp = super().send(*args, **kwargs)
 
         return callback(self, resp)
-
 
 class LoginPage(JsonPage):
     def redirect(self):
@@ -600,6 +599,60 @@ class DoctolibFR(Doctolib):
     centers = URL(r'/vaccination-covid-19/(?P<where>\w+)', CentersPage)
     center = URL(r'/centre-de-sante/.*', CenterPage)
 
+
+class IBuilder(metaclass=ABCMeta):
+    "The Builder Interface"
+
+    @staticmethod
+    @abstractmethod
+    def build_patients(self):
+        "Build patients"
+
+    @staticmethod
+    @abstractmethod
+    def build_motives(self):
+        "Build motives"
+
+    @staticmethod
+    @abstractmethod
+    def build_date(self):
+        "Build date"
+
+    @staticmethod
+    @abstractmethod
+    def get_result():
+        "Return the final product"
+
+class Builder(IBuilder):
+    "The Concrete Builder."
+
+    def __init__(self):
+        self.product = Product()
+        "Append docto to products.part[0]" #refactor line 739-742 from the original doctoshotgun.py file
+    
+    def build_patients(self):
+        "Append docto.patient to products.part[1]" #refactor line 744-765 from the original doctoshotgun.py file 
+
+    def build_motives(self):
+        "Append motives.append(docto.KEY) to products.part[2]" #refactor line 767-817 from the original doctoshotgun.py file
+
+    def build_date(self):
+        "Append start_date/end_date to products.part[3]" #refactor line 821-838 from the original doctoshotgun.py file
+
+    def get_result():
+        "return self.product.parts" 
+
+class Product():
+    def __init__(self):
+        self.parts = []
+    
+class Director:
+    "The Director, building a complex representation."
+    
+    @staticmethod
+    def construct():
+        "Constructs and returns the final product"
+        return Builder()
 
 class Application:
     @classmethod
