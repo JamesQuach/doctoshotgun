@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from _typeshed import Self
 import sys
 import re
 import logging
@@ -13,6 +14,7 @@ import unicodedata
 
 from dateutil.parser import parse as parse_date
 from dateutil.relativedelta import relativedelta
+from abc import ABCMeta, abstractmethod
 
 import cloudscraper
 import colorama
@@ -547,7 +549,149 @@ class Doctolib(LoginBrowser):
 
         return self.page.doc['confirmed']
 
+#Bridge Pattern
+class IDoctolibPrintMotivesList(metaclass=ABCMeta):
+    "Abstraction interface"
 
+    KEY_PFIZER = ''
+    KEY_PFIZER_SECOND = ''
+    KEY_PFIZER_THIRD = None
+    KEY_MODERNA = ''
+    KEY_MODERNA_SECOND = ''
+    KEY_MODERNA_THIRD = None
+    KEY_JANSSEN = ''
+    KEY_ASTRAZENECA = ''
+    KEY_ASTRAZENECA_SECOND = ''
+    
+    vaccine_motives = {}
+
+    @staticmethod
+    @abstractmethod
+    def print_vaccine_motives():
+        "Controlling the implementer"
+
+class IDoctolibPrintMotivesListImplementer(metaclass=ABCMeta):
+    "Implementer"
+
+    KEY_PFIZER = ''
+    KEY_PFIZER_SECOND = ''
+    KEY_PFIZER_THIRD = None
+    KEY_MODERNA = ''
+    KEY_MODERNA_SECOND = ''
+    KEY_MODERNA_THIRD = None
+    KEY_JANSSEN = ''
+    KEY_ASTRAZENECA = ''
+    KEY_ASTRAZENECA_SECOND = ''
+
+    vaccine_motives = {}
+
+    @staticmethod
+    @abstractmethod
+    def print_vaccine_motives_implementation():
+        "Implement the refined abstraction"
+
+class DoctolibPrintMotivesListDE(IDoctolibPrintMotivesList):
+    "Refined abstraction"
+
+    KEY_PFIZER = ''
+    KEY_PFIZER_SECOND = ''
+    KEY_PFIZER_THIRD = None
+    KEY_MODERNA = ''
+    KEY_MODERNA_SECOND = ''
+    KEY_MODERNA_THIRD = None
+    KEY_JANSSEN = ''
+    KEY_ASTRAZENECA = ''
+    KEY_ASTRAZENECA_SECOND = ''
+
+    vaccine_motives = {}
+
+    def __init__(self, implementer):
+        self.implementer = implementer()
+
+    def print_vaccine_motives(self):
+        self.implementer.print_vaccine_motives_implementation()
+
+class DoctolibPrintMotivesListFR(IDoctolibPrintMotivesList):
+    "Refined abstraction"
+    
+    KEY_PFIZER = ''
+    KEY_PFIZER_SECOND = ''
+    KEY_PFIZER_THIRD = None
+    KEY_MODERNA = ''
+    KEY_MODERNA_SECOND = ''
+    KEY_MODERNA_THIRD = None
+    KEY_JANSSEN = ''
+    KEY_ASTRAZENECA = ''
+    KEY_ASTRAZENECA_SECOND = ''
+
+    vaccine_motives = {}
+
+    def __init__(self, implementer):
+        self.implementer = implementer()
+
+    def print_vaccine_motives(self):
+        self.implementer.print_vaccine_motives_implementation()
+
+class DoctolibPrintMotivesListDEImplementer(IDoctolibPrintMotivesListImplementer):
+    "Implementer"
+    
+    KEY_PFIZER = '6768'
+    KEY_PFIZER_SECOND = '6769'
+    KEY_PFIZER_THIRD = None
+    KEY_MODERNA = '6936'
+    KEY_MODERNA_SECOND = '6937'
+    KEY_MODERNA_THIRD = None
+    KEY_JANSSEN = '7978'
+    KEY_ASTRAZENECA = '7109'
+    KEY_ASTRAZENECA_SECOND = '7110'
+
+    vaccine_motives = {
+        KEY_PFIZER: 'Pfizer',
+        KEY_PFIZER_SECOND: 'Zweit.*Pfizer|Pfizer.*Zweit',
+        KEY_PFIZER_THIRD: 'Dritt.*Pfizer|Pfizer.*Dritt',
+        KEY_MODERNA: 'Moderna',
+        KEY_MODERNA_SECOND: 'Zweit.*Moderna|Moderna.*Zweit',
+        KEY_MODERNA_THIRD: 'Dritt.*Moderna|Moderna.*Dritt',
+        KEY_JANSSEN: 'Janssen',
+        KEY_ASTRAZENECA: 'AstraZeneca',
+        KEY_ASTRAZENECA_SECOND: 'Zweit.*AstraZeneca|AstraZeneca.*Zweit',
+    }
+
+    def print_vaccine_motives_implementation(self):
+        print("" + self.vaccine_motives)
+
+class DoctolibPrintMotivesListFRImplementer(IDoctolibPrintMotivesListImplementer):
+    "Implementer"
+
+    KEY_PFIZER = '6970'
+    KEY_PFIZER_SECOND = '6971'
+    KEY_PFIZER_THIRD = '8192'
+    KEY_MODERNA = '7005'
+    KEY_MODERNA_SECOND = '7004'
+    KEY_MODERNA_THIRD = '8193'
+    KEY_JANSSEN = '7945'
+    KEY_ASTRAZENECA = '7107'
+    KEY_ASTRAZENECA_SECOND = '7108'
+
+    vaccine_motives = {
+        KEY_PFIZER: 'Pfizer',
+        KEY_PFIZER_SECOND: '2de.*Pfizer',
+        KEY_PFIZER_THIRD: '3e.*Pfizer',
+        KEY_MODERNA: 'Moderna',
+        KEY_MODERNA_SECOND: '2de.*Moderna',
+        KEY_MODERNA_THIRD: '3e.*Moderna',
+        KEY_JANSSEN: 'Janssen',
+        KEY_ASTRAZENECA: 'AstraZeneca',
+        KEY_ASTRAZENECA_SECOND: '2de.*AstraZeneca',
+    }
+
+    def print_vaccine_motives_implementation(self):
+        print("" + self.vaccine_motives)
+
+class Client():
+    DoctolibPrintMotivesListDE(DoctolibPrintMotivesListDEImplementer).print_vaccine_motives
+    DoctolibPrintMotivesListFR(DoctolibPrintMotivesListFRImplementer).print_vaccine_motives
+    
 class DoctolibDE(Doctolib):
     BASEURL = 'https://www.doctolib.de'
     KEY_PFIZER = '6768'
