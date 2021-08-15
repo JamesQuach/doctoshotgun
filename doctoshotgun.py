@@ -688,7 +688,10 @@ class DoctolibPrintMotivesListFRImplementer(IDoctolibPrintMotivesListImplementer
     def print_vaccine_motives_implementation(self):
         print("" + self.vaccine_motives)
 
-
+class Client():
+    DoctolibPrintMotivesListDE(DoctolibPrintMotivesListDEImplementer).print_vaccine_motives
+    DoctolibPrintMotivesListFR(DoctolibPrintMotivesListFRImplementer).print_vaccine_motives
+    
 class DoctolibDE(Doctolib):
     BASEURL = 'https://www.doctolib.de'
     KEY_PFIZER = '6768'
